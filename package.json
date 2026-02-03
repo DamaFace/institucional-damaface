@@ -68,7 +68,7 @@
     "input-otp": "latest",
     "jspdf": "^3.0.4",
     "lucide-react": "^0.454.0",
-    "next": "^15.1.9",
+    "next": "15.1.11",
     "next-mdx-remote": "^5.0.0",
     "next-themes": "latest",
     "prisma": "^6.14.0",
