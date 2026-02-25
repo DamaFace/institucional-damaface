@@ -416,7 +416,7 @@ export default function LessonPlayer({
 
       {/* Controles Customizados */}
       <div
-        className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 lg:p-6 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'
+        className={`absolute bottom-0 left-0 right-0 z-10 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 lg:p-6 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'
           }`}
       >
         {/* Barra de Progresso */}
