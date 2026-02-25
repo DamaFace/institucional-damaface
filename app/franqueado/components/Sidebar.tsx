@@ -73,11 +73,11 @@ const NAV_LINKS: NavItem[] = [
   { id: 'academy', name: 'Academy', icon: GraduationCap, route: '/franqueado/academy', roles: ALL_ROLES },
   { id: 'ajuda', name: 'Ajuda', icon: HelpCircle, route: '/franqueado/ajuda', roles: ALL_ROLES },
   { id: 'suporte', name: 'Suporte', icon: LifeBuoy, route: '/franqueado/suporte', roles: ALL_ROLES },
-  { id: 'consultoria', name: 'Consultoria', icon: BriefcaseBusiness, route: '/franqueado/consultoria', roles: FRANQUEADO_ROLES, hasSubModules: true, subModules: CONSULTORIA_SUBMODULES },
+  //{ id: 'consultoria', name: 'Consultoria', icon: BriefcaseBusiness, route: '/franqueado/consultoria', roles: FRANQUEADO_ROLES, hasSubModules: true, subModules: CONSULTORIA_SUBMODULES },
   { id: 'comunicados', name: 'Comunicados', icon: Newspaper, route: '/franqueado/comunicados', roles: ALL_ROLES },
   //{ id: 'damaai', name: 'Dama.ai', icon: BrainCircuit, route: '/franqueado/damaai', roles: ALL_ROLES },
   { id: 'marketing', name: 'Marketing', icon: Megaphone, route: '/franqueado/marketing', roles: ALL_ROLES, hasSubModules: true, subModules: MARKETING_SUBMODULES },
-  { id: 'excelencia', name: 'Programa de Excelência', icon: Award, route: '/franqueado/excelencia', roles: ['SUPERADMIN', 'FRANQUEADO'], hasSubModules: true, subModules: EXCELENCIA_SUBMODULES },
+  //{ id: 'excelencia', name: 'Programa de Excelência', icon: Award, route: '/franqueado/excelencia', roles: ['SUPERADMIN', 'FRANQUEADO'], hasSubModules: true, subModules: EXCELENCIA_SUBMODULES },
   { id: 'usuarios', name: 'Usuarios', icon: Users2, route: '/franqueado/usuarios', roles: ADMIN_ROLES },
 ]
 
