@@ -14,7 +14,7 @@ import {
 
 import LessonPlayer from "@/app/franqueado/academy/components/LessonPlayer";
 import LessonSidebar from "@/app/franqueado/academy/components/LessonSidebar";
-import { useCurso, useAula, completeLesson  } from "@/hooks/useApi";
+import { useCurso, useAula, completeLesson } from "@/hooks/useApi";
 
 interface LessonPageProps {
   params: { courseSlug: string; lessonSlug: string };
@@ -30,6 +30,8 @@ export default function LessonPage({ params }: LessonPageProps) {
 
   const [showSidebar, setShowSidebar] = useState(true);
   const [marcando, setMarcando] = useState(false);
+  const [videoCurrentTime, setVideoCurrentTime] = useState(0);
+  const [videoDuration, setVideoDuration] = useState(0);
 
   // Proteção de rota
   useEffect(() => {
@@ -77,21 +79,21 @@ export default function LessonPage({ params }: LessonPageProps) {
   const handleMarkComplete = async () => {
     try {
       setMarcando(true);
-  
+
       // 1. Atualiza otimisticamente (UI responde rápido)
       if (aulaAtual.progresso) {
         aulaAtual.progresso.concluida = true;
       }
-  
+
       // 2. Faz a requisição
       await completeLesson(aulaAtual.slug);
-      
+
       // 3. ✅ RECARREGA AMBOS (em paralelo para ser mais rápido)
       await Promise.all([
         refetchAula(),
         refetchCurso()
       ]);
-  
+
     } catch (err) {
       console.error("Erro ao marcar aula:", err);
       // Reverte a mudança otimista em caso de erro
@@ -107,6 +109,13 @@ export default function LessonPage({ params }: LessonPageProps) {
   // Aula concluida - bool
   const concluida = aulaAtual.progresso?.concluida || false;
 
+  // Mostrar botão de concluir apenas nos instantes finais (≥90% ou ≤30s restantes)
+  const isNearEnd =
+    concluida ||
+    (videoDuration > 0 &&
+      (videoCurrentTime / videoDuration >= 0.9 ||
+        videoDuration - videoCurrentTime <= 30));
+
 
   return (
     <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900">
@@ -114,9 +123,8 @@ export default function LessonPage({ params }: LessonPageProps) {
         <main className="flex-1 flex">
           {/* Conteúdo Principal */}
           <div
-            className={`flex-1 transition-all duration-300 ${
-              showSidebar ? "mr-96" : "mr-0"
-            }`}
+            className={`flex-1 transition-all duration-300 ${showSidebar ? "mr-96" : "mr-0"
+              }`}
           >
             {/* Header da Aula */}
             <div className="bg-black/50 backdrop-blur-sm border-b border-white/10 p-4 flex justify-between">
@@ -141,6 +149,10 @@ export default function LessonPage({ params }: LessonPageProps) {
               aulaAnterior={aulaAnterior}
               proximaAula={proximaAula}
               courseSlug={courseSlug}
+              onProgressChange={(current, total) => {
+                setVideoCurrentTime(current);
+                setVideoDuration(total);
+              }}
             />
 
             {/* Informações da Aula */}
@@ -149,14 +161,15 @@ export default function LessonPage({ params }: LessonPageProps) {
                 <h2 className="text-2xl font-bold text-white">
                   {aulaAtual.titulo}
                 </h2>
+                {/* Botão só aparece nos instantes finais ou se já concluída */}
+                {isNearEnd && (
                   <button
                     onClick={handleMarkComplete}
                     disabled={marcando || concluida}
-                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-colors ${
-                      concluida
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all duration-500 ${concluida
                         ? "bg-green-500/20 text-green-400 border border-green-500/30"
-                        : "bg-brand-pink hover:bg-brand-pink/90 text-white"
-                    }`}
+                        : "bg-brand-pink hover:bg-brand-pink/90 text-white animate-pulse"
+                      }`}
                   >
                     {concluida ? (
                       <>
@@ -168,6 +181,7 @@ export default function LessonPage({ params }: LessonPageProps) {
                       </>
                     )}
                   </button>
+                )}
               </div>
 
               <div className="flex items-center gap-4 text-gray-400 mb-4">

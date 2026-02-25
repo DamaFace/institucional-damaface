@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { 
-  Play, 
-  Pause, 
-  SkipBack, 
-  SkipForward, 
-  Clock, 
-  Maximize, 
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  Clock,
+  Maximize,
   Minimize,
   Volume2,
   FileText
@@ -29,6 +29,7 @@ interface LessonPlayerProps {
   aulaAnterior?: Aula | null;
   proximaAula?: Aula | null;
   courseSlug: string;
+  onProgressChange?: (currentTime: number, duration: number) => void;
 }
 
 export default function LessonPlayer({
@@ -37,6 +38,7 @@ export default function LessonPlayer({
   aulaAnterior,
   proximaAula,
   courseSlug,
+  onProgressChange,
 }: LessonPlayerProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -46,9 +48,11 @@ export default function LessonPlayer({
   const [duration, setDuration] = useState(0);
   const [progress, setProgress] = useState(0);
   const [videoError, setVideoError] = useState<string | null>(null);
+  const [showControls, setShowControls] = useState(false);
   const playerRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const hideControlsTimerRef = useRef<NodeJS.Timeout | null>(null);
 
 
   // Função para validar o formato do video_id do YouTube
@@ -122,16 +126,36 @@ export default function LessonPlayer({
   // Função para formatar tempo em MM:SS ou HH:MM:SS
   const formatTime = (seconds: number): string => {
     if (isNaN(seconds)) return "0:00";
-    
+
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
-    
+
     if (hours > 0) {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
+
+  // Mostrar/ocultar controles com auto-hide em mobile
+  const revealControls = () => {
+    setShowControls(true);
+    if (hideControlsTimerRef.current) {
+      clearTimeout(hideControlsTimerRef.current);
+    }
+    hideControlsTimerRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
+  };
+
+  // Limpar timer de auto-hide ao desmontar
+  useEffect(() => {
+    return () => {
+      if (hideControlsTimerRef.current) {
+        clearTimeout(hideControlsTimerRef.current);
+      }
+    };
+  }, []);
 
   // Atualizar informações do vídeo
   const updateVideoInfo = () => {
@@ -140,10 +164,15 @@ export default function LessonPlayer({
     try {
       const current = player.getCurrentTime();
       const total = player.getDuration();
-      
+
       setCurrentTime(current);
       setDuration(total);
       setProgress(total > 0 ? (current / total) * 100 : 0);
+
+      // Notificar componente pai sobre progresso
+      if (onProgressChange) {
+        onProgressChange(current, total);
+      }
     } catch (error) {
       console.log('Erro ao obter informações do vídeo:', error);
     }
@@ -210,7 +239,7 @@ export default function LessonPlayer({
               // 1 = playing, 2 = paused
               const playing = event.data === 1;
               setIsPlaying(playing);
-              
+
               // Atualizar informações imediatamente quando o estado mudar
               if (playing) {
                 updateVideoInfo();
@@ -225,7 +254,7 @@ export default function LessonPlayer({
               // 150 = O proprietário do vídeo não permite a reprodução em players incorporados
               const errorCode = event.data;
               let errorMessage = `Erro ao carregar o vídeo (Código: ${errorCode}). `;
-              
+
               switch (errorCode) {
                 case 2:
                   errorMessage += `Video ID inválido: "${aulaAtual.video_id}". O ID fornecido não é válido.`;
@@ -243,7 +272,7 @@ export default function LessonPlayer({
                 default:
                   errorMessage += `Erro desconhecido ao carregar o vídeo.`;
               }
-              
+
               console.error('Erro no YouTube Player:', errorMessage);
               setVideoError(errorMessage);
               // Lançar exceção de forma assíncrona para travar a aplicação
@@ -254,8 +283,8 @@ export default function LessonPlayer({
           },
         });
       } catch (error) {
-        const errorMessage = error instanceof Error 
-          ? error.message 
+        const errorMessage = error instanceof Error
+          ? error.message
           : `Erro ao inicializar o player do YouTube para o vídeo ID: "${aulaAtual.video_id}"`;
         console.error(errorMessage, error);
         setVideoError(errorMessage);
@@ -290,8 +319,8 @@ export default function LessonPlayer({
         setProgress(0);
         setVideoError(null); // Limpar erro anterior
       } catch (error) {
-        const errorMessage = error instanceof Error 
-          ? error.message 
+        const errorMessage = error instanceof Error
+          ? error.message
           : `Erro ao carregar o vídeo com ID: "${aulaAtual.video_id}"`;
         console.error(errorMessage, error);
         setVideoError(errorMessage);
@@ -357,9 +386,11 @@ export default function LessonPlayer({
   }, []);
 
   return (
-    <div 
+    <div
       ref={containerRef}
       className={`relative bg-black ${isFullscreen ? 'w-screen h-screen' : 'aspect-video'}`}
+      onMouseEnter={() => setShowControls(true)}
+      onMouseLeave={() => setShowControls(false)}
     >
       {/* Player Container */}
       <div className="absolute inset-0 w-full h-full">
@@ -384,7 +415,10 @@ export default function LessonPlayer({
       </div>
 
       {/* Controles Customizados */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 lg:p-6 opacity-0 hover:opacity-100 transition-opacity duration-300">
+      <div
+        className={`absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-4 lg:p-6 transition-opacity duration-300 ${showControls ? 'opacity-100' : 'opacity-0'
+          }`}
+      >
         {/* Barra de Progresso */}
         <div className="mb-4">
           <div className="w-full bg-white/20 rounded-full h-1 cursor-pointer">
@@ -477,10 +511,22 @@ export default function LessonPlayer({
         )}
       </div>
 
-      {/* Overlay para mostrar controles no mobile */}
-      <div className="absolute inset-0 lg:hidden" onClick={() => {}}>
-        {/* Área clicável invisível para mostrar controles no mobile */}
-      </div>
+      {/* Overlay para mostrar/ocultar controles no mobile ao tocar */}
+      <div
+        className="absolute inset-0 lg:hidden"
+        onClick={() => {
+          if (showControls) {
+            // Se controles estão visíveis e player existe, play/pause ao clicar
+            if (player) {
+              handlePlayPause();
+            }
+            revealControls();
+          } else {
+            // Mostrar controles
+            revealControls();
+          }
+        }}
+      />
     </div>
   );
 }
