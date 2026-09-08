@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowLeft, GripVertical, Plus, Settings, Trash2 } from 'lucide-react'
+import { ArrowLeft, BarChart3, GripVertical, Image as ImageIcon, Plus, Settings, Trash2, Upload } from 'lucide-react'
 import {
   DndContext,
   closestCenter,
@@ -23,7 +23,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useSuperadminGuard } from '@/hooks/useSuperadminGuard'
 import { useFunnelBuilder } from '@/hooks/useFunnelBuilder'
 import { funnelAdminApi } from '@/lib/funnels/admin-api'
-import type { Funnel, FunnelBlockType, FunnelStep } from '@/types/funnels'
+import type { Funnel, FunnelBlockType, FunnelOption, FunnelStep } from '@/types/funnels'
 import { Spinner } from '@/components/ui/spinner'
 import { FUNNEL_BLOCK_REGISTRY } from '@/components/funnel-runtime/blocks'
 import { FunnelRuntimeContext, type FunnelRuntimeContextValue } from '@/components/funnel-runtime/FunnelRuntimeContext'
@@ -52,7 +52,7 @@ const MVP_BLOCK_TYPES: { type: FunnelBlockType; label: string }[] = [
 const inputClass =
   'w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all'
 
-function isLocalId(id: string): boolean {
+function isLocalId(id: string | number): boolean {
   return String(id).includes('_local_')
 }
 
@@ -126,6 +126,10 @@ export default function FunnelEditorPage() {
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [deletedStepIds, setDeletedStepIds] = useState<string[]>([])
+  const [uploadingOptionId, setUploadingOptionId] = useState<string | null>(null)
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const targetOptionRef = useRef<string | null>(null)
 
   const builder = useFunnelBuilder([])
 
@@ -164,6 +168,35 @@ export default function FunnelEditorPage() {
     builder.handleRemoveStep(step.id)
   }
 
+  const handleTriggerUpload = (optionId: string) => {
+    targetOptionRef.current = optionId
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
+      fileInputRef.current.click()
+    }
+  }
+
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    const optionId = targetOptionRef.current
+    if (!file || !optionId || !selectedStep) return
+
+    setUploadingOptionId(optionId)
+    try {
+      const asset = await funnelAdminApi.uploadAsset(file, `${selectedStep.title || 'Funil'} - Opção`)
+      builder.handleUpdateOption(selectedStep.id, optionId, {
+        image_url: asset.url,
+        asset_id: asset.id,
+      })
+    } catch (err) {
+      console.error('Falha no upload da imagem', err)
+      alert(`Falha ao fazer upload da imagem: ${err instanceof Error ? err.message : 'Erro desconhecido'}`)
+    } finally {
+      setUploadingOptionId(null)
+      targetOptionRef.current = null
+    }
+  }
+
   const handleSave = async () => {
     setIsSaving(true)
     setSaveError(null)
@@ -178,10 +211,27 @@ export default function FunnelEditorPage() {
 
       for (const step of builder.steps) {
         const { id, ...payload } = step
+
+        const cleanOptions = (step.options ?? []).map((opt, optIndex) => ({
+          ...(isLocalId(opt.id) ? {} : { id: Number(opt.id) }),
+          label: opt.label || '',
+          value: opt.value || `opcao_${optIndex + 1}`,
+          position: optIndex,
+          image_url: opt.image_url || undefined,
+          asset_id: opt.asset_id ? Number(opt.asset_id) : undefined,
+          next_step_id: opt.next_step_id && !isLocalId(opt.next_step_id) ? Number(opt.next_step_id) : null,
+        }))
+
+        const stepPayload = {
+          ...payload,
+          options: cleanOptions,
+          next_step_id: payload.next_step_id && !isLocalId(payload.next_step_id) ? Number(payload.next_step_id) : null,
+        }
+
         if (isLocalId(id)) {
-          await funnelAdminApi.createStep(funnelId, payload)
+          await funnelAdminApi.createStep(funnelId, stepPayload as any)
         } else {
-          await funnelAdminApi.updateStep(funnelId, id, payload)
+          await funnelAdminApi.updateStep(funnelId, id, stepPayload as any)
         }
       }
 
@@ -196,6 +246,7 @@ export default function FunnelEditorPage() {
       setIsSaving(false)
     }
   }
+
 
   const handlePublish = async () => {
     if (!funnel) return
@@ -246,8 +297,15 @@ export default function FunnelEditorPage() {
 
         <div className="flex items-center gap-2">
           <Link
+            href={`/franqueado/funnels/${funnel.id}/results`}
+            className="flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2.5 text-sm font-medium text-gray-300 transition hover:bg-gray-800"
+          >
+            <BarChart3 className="h-4 w-4 text-pink-400" />
+            Resultados
+          </Link>
+          <Link
             href={`/franqueado/funnels/${funnel.id}/settings`}
-            className="flex items-center gap-2 rounded-lg border border-gray-700 px-4 py-2.5 text-sm font-medium text-gray-300 transition hover:bg-gray-800"
+            className="flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2.5 text-sm font-medium text-gray-300 transition hover:bg-gray-800"
           >
             <Settings className="h-4 w-4" />
             Configurações
@@ -267,6 +325,14 @@ export default function FunnelEditorPage() {
           </button>
         </div>
       </div>
+
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileChange}
+        accept="image/*"
+        className="hidden"
+      />
 
       {saveError && <p className="text-sm text-red-400">{saveError}</p>}
 
@@ -362,24 +428,48 @@ export default function FunnelEditorPage() {
                     </button>
                   </div>
                   {(selectedStep.options ?? []).map((option) => (
-                    <div key={option.id} className="space-y-1 rounded-md border border-gray-700 p-2">
+                    <div key={option.id} className="space-y-2 rounded-md border border-gray-700 bg-gray-850 p-2.5">
                       <input
                         value={option.label}
                         onChange={(event) =>
                           builder.handleUpdateOption(selectedStep.id, option.id, { label: event.target.value, value: event.target.value })
                         }
-                        placeholder="Label"
+                        placeholder="Nome da opção"
                         className={inputClass}
                       />
                       {selectedStep.type === 'image_choice' && (
-                        <input
-                          value={option.image_url ?? ''}
-                          onChange={(event) => builder.handleUpdateOption(selectedStep.id, option.id, { image_url: event.target.value })}
-                          placeholder="URL da imagem"
-                          className={inputClass}
-                        />
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-600 bg-gray-900">
+                            {option.image_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={option.image_url}
+                                alt={option.label || 'Preview'}
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <ImageIcon className="h-5 w-5 text-gray-500" />
+                            )}
+                          </div>
+                          <input
+                            value={option.image_url ?? ''}
+                            onChange={(event) => builder.handleUpdateOption(selectedStep.id, option.id, { image_url: event.target.value })}
+                            placeholder="URL da imagem (https://...)"
+                            className={inputClass}
+                          />
+                          <button
+                            type="button"
+                            disabled={uploadingOptionId === option.id}
+                            onClick={() => handleTriggerUpload(option.id)}
+                            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-600 bg-gray-700 px-3 py-2 text-xs font-medium text-gray-200 transition hover:bg-gray-600 hover:text-white disabled:opacity-50"
+                            title="Fazer upload de imagem"
+                          >
+                            <Upload className="h-3.5 w-3.5" />
+                            {uploadingOptionId === option.id ? 'Enviando...' : 'Upload'}
+                          </button>
+                        </div>
                       )}
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <select
                           value={option.next_step_id ?? ''}
                           onChange={(event) =>
@@ -387,7 +477,7 @@ export default function FunnelEditorPage() {
                           }
                           className={inputClass}
                         >
-                          <option value="">Próximo step: nenhum</option>
+                          <option value="">Próximo step: padrão</option>
                           {builder.steps
                             .filter((s) => s.id !== selectedStep.id)
                             .map((s) => (
@@ -398,7 +488,8 @@ export default function FunnelEditorPage() {
                         </select>
                         <button
                           onClick={() => builder.handleRemoveOption(selectedStep.id, option.id)}
-                          className="ml-2 shrink-0 text-red-400 hover:text-red-300"
+                          className="shrink-0 p-1.5 text-red-400 hover:text-red-300"
+                          title="Remover opção"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>
@@ -407,6 +498,7 @@ export default function FunnelEditorPage() {
                   ))}
                 </div>
               )}
+
 
               {(selectedStep.type === 'before_after' ||
                 selectedStep.type === 'unit_choice' ||

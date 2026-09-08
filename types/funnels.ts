@@ -126,3 +126,61 @@ export interface FunnelSession {
   id: string
   funnel_id: string
 }
+
+export interface FunnelAnalyticsOverview {
+  sessions: number
+  entries: number
+  leads: number
+  entry_rate: number
+  conversion_rate: number
+  whatsapp_clicks: number
+  period: {
+    from: string | null
+    to: string | null
+  }
+}
+
+export interface FunnelAnalyticsStep {
+  step_id: number
+  tracking_key: string
+  title: string
+  position: number
+  views: number
+  completions: number
+  drop_rate: number
+  conversion_rate: number
+}
+
+export interface FunnelAnalyticsPage {
+  source_page: string
+  sessions: number
+  entries: number
+  leads: number
+  entry_rate: number
+  conversion_rate: number
+}
+
+export interface FunnelAnalyticsUtmItem {
+  utm_source?: string
+  utm_campaign?: string
+  utm_content?: string
+  sessions: number
+  leads: number
+  conversion_rate: number
+}
+
+export interface FunnelAnalyticsUtm {
+  by_source: FunnelAnalyticsUtmItem[]
+  by_campaign: FunnelAnalyticsUtmItem[]
+  by_content: FunnelAnalyticsUtmItem[]
+}
+
+export interface FunnelAnalyticsAnswerOption {
+  label: string
+  total: number
+  distribution_rate: number
+  conversion_rate: number
+}
+
+export type FunnelAnalyticsAnswers = Record<string, FunnelAnalyticsAnswerOption[]>
+
