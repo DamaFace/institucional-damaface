@@ -10,7 +10,7 @@
 // convergem no mesmo formato de estado — um array com `position` recalculada.
 
 import { useCallback, useState } from 'react'
-import type { FunnelBlockType, FunnelOption, FunnelStep } from '@/types/funnels'
+import type { FunnelBeforeAfterPair, FunnelBlockType, FunnelOption, FunnelStep } from '@/types/funnels'
 
 let localIdCounter = 0
 function localId(prefix: string): string {
@@ -21,7 +21,10 @@ function localId(prefix: string): string {
 const MVP_BLOCK_DEFAULTS: Record<string, Partial<FunnelStep>> = {
   choice: { title: 'Nova pergunta', options: [] },
   image_choice: { title: 'Nova pergunta com imagem', options: [] },
-  before_after: { title: 'Antes / depois', pairs: [] },
+  before_after: {
+    title: 'Você busca um resultado parecido?',
+    pairs: [{ id: 'pair_local_1', before_url: '', after_url: '', caption: '' }],
+  },
   unit_choice: { title: 'Em qual unidade você quer ser atendido(a)?' },
   text_input: { title: 'Como podemos te chamar?', placeholder: 'Seu nome' },
   phone: { title: 'Qual seu WhatsApp?', placeholder: '(19) 99999-9999' },
@@ -119,6 +122,41 @@ export function useFunnelBuilder(initialSteps: FunnelStep[]) {
     )
   }, [])
 
+  // Pairs handlers (para Before / After)
+  const handleAddPair = useCallback((stepId: string) => {
+    setSteps((prev) =>
+      prev.map((step) => {
+        if (step.id !== stepId) return step
+        const pairs = step.pairs ?? []
+        const newPair: FunnelBeforeAfterPair = {
+          id: localId('pair'),
+          before_url: '',
+          after_url: '',
+          caption: '',
+        }
+        return { ...step, pairs: [...pairs, newPair] }
+      }),
+    )
+  }, [])
+
+  const handleUpdatePair = useCallback((stepId: string, pairId: string, patch: Partial<FunnelBeforeAfterPair>) => {
+    setSteps((prev) =>
+      prev.map((step) => {
+        if (step.id !== stepId) return step
+        return { ...step, pairs: (step.pairs ?? []).map((pair) => (pair.id === pairId ? { ...pair, ...patch } : pair)) }
+      }),
+    )
+  }, [])
+
+  const handleRemovePair = useCallback((stepId: string, pairId: string) => {
+    setSteps((prev) =>
+      prev.map((step) => {
+        if (step.id !== stepId) return step
+        return { ...step, pairs: (step.pairs ?? []).filter((pair) => pair.id !== pairId) }
+      }),
+    )
+  }, [])
+
   return {
     steps,
     setSteps,
@@ -132,5 +170,9 @@ export function useFunnelBuilder(initialSteps: FunnelStep[]) {
     handleAddOption,
     handleUpdateOption,
     handleRemoveOption,
+    handleAddPair,
+    handleUpdatePair,
+    handleRemovePair,
   }
 }
+

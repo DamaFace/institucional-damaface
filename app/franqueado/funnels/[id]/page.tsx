@@ -193,16 +193,24 @@ export default function FunnelEditorPage() {
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
-    const optionId = targetOptionRef.current
-    if (!file || !optionId || !selectedStep) return
+    const targetKey = targetOptionRef.current
+    if (!file || !targetKey || !selectedStep) return
 
-    setUploadingOptionId(optionId)
+    setUploadingOptionId(targetKey)
     try {
-      const asset = await funnelAdminApi.uploadAsset(file, `${selectedStep.title || 'Funil'} - Opção`)
-      builder.handleUpdateOption(selectedStep.id, optionId, {
-        image_url: asset.url,
-        asset_id: asset.id,
-      })
+      const asset = await funnelAdminApi.uploadAsset(file, `${selectedStep.title || 'Funil'} - Asset`)
+      if (targetKey.startsWith('pair_before_')) {
+        const pairId = targetKey.replace('pair_before_', '')
+        builder.handleUpdatePair(selectedStep.id, pairId, { before_url: asset.url })
+      } else if (targetKey.startsWith('pair_after_')) {
+        const pairId = targetKey.replace('pair_after_', '')
+        builder.handleUpdatePair(selectedStep.id, pairId, { after_url: asset.url })
+      } else {
+        builder.handleUpdateOption(selectedStep.id, targetKey, {
+          image_url: asset.url,
+          asset_id: asset.id,
+        })
+      }
     } catch (err) {
       console.error('Falha no upload da imagem', err)
       alert(`Falha ao fazer upload da imagem: ${err instanceof Error ? err.message : 'Erro desconhecido'}`)
@@ -248,6 +256,7 @@ export default function FunnelEditorPage() {
         const stepPayload = {
           ...payload,
           options: cleanOptions,
+          pairs: step.pairs ?? [],
           next_step_id: numStepNextStep ?? null,
         }
 
@@ -257,6 +266,7 @@ export default function FunnelEditorPage() {
           await funnelAdminApi.updateStep(funnelId, String(id), stepPayload as any)
         }
       }
+
 
       setDeletedStepIds([])
       const refreshed = await funnelAdminApi.get(funnelId)
@@ -521,6 +531,123 @@ export default function FunnelEditorPage() {
                 </div>
               )}
 
+              {selectedStep.type === 'before_after' && (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-medium text-gray-400">Pares de Antes e Depois</label>
+                    <button
+                      type="button"
+                      onClick={() => builder.handleAddPair(selectedStep.id)}
+                      className="text-xs font-medium text-pink-400 hover:text-pink-300"
+                    >
+                      + adicionar par
+                    </button>
+                  </div>
+
+                  {(selectedStep.pairs ?? []).map((pair, pIdx) => (
+                    <div key={pair.id || pIdx} className="space-y-3 rounded-md border border-gray-700 bg-gray-850 p-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-gray-300">Par {pIdx + 1}</span>
+                        <button
+                          type="button"
+                          onClick={() => builder.handleRemovePair(selectedStep.id, pair.id)}
+                          className="shrink-0 p-1 text-red-400 hover:text-red-300"
+                          title="Remover par"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      {/* Antes */}
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-medium text-gray-400">Foto do ANTES</label>
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-600 bg-gray-900">
+                            {pair.before_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={pair.before_url}
+                                alt="Antes"
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <ImageIcon className="h-5 w-5 text-gray-500" />
+                            )}
+                          </div>
+                          <input
+                            value={pair.before_url ?? ''}
+                            onChange={(event) =>
+                              builder.handleUpdatePair(selectedStep.id, pair.id, { before_url: event.target.value })
+                            }
+                            placeholder="URL da foto Antes (https://...)"
+                            className={inputClass}
+                          />
+                          <button
+                            type="button"
+                            disabled={uploadingOptionId === `pair_before_${pair.id}`}
+                            onClick={() => handleTriggerUpload(`pair_before_${pair.id}`)}
+                            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-600 bg-gray-700 px-3 py-2 text-xs font-medium text-gray-200 transition hover:bg-gray-600 hover:text-white disabled:opacity-50"
+                            title="Upload foto Antes"
+                          >
+                            <Upload className="h-3.5 w-3.5" />
+                            {uploadingOptionId === `pair_before_${pair.id}` ? 'Enviando...' : 'Upload'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Depois */}
+                      <div className="space-y-1">
+                        <label className="block text-[11px] font-medium text-pink-400">Foto do DEPOIS</label>
+                        <div className="flex items-center gap-2">
+                          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-600 bg-gray-900">
+                            {pair.after_url ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={pair.after_url}
+                                alt="Depois"
+                                className="h-full w-full object-cover"
+                              />
+                            ) : (
+                              <ImageIcon className="h-5 w-5 text-gray-500" />
+                            )}
+                          </div>
+                          <input
+                            value={pair.after_url ?? ''}
+                            onChange={(event) =>
+                              builder.handleUpdatePair(selectedStep.id, pair.id, { after_url: event.target.value })
+                            }
+                            placeholder="URL da foto Depois (https://...)"
+                            className={inputClass}
+                          />
+                          <button
+                            type="button"
+                            disabled={uploadingOptionId === `pair_after_${pair.id}`}
+                            onClick={() => handleTriggerUpload(`pair_after_${pair.id}`)}
+                            className="flex shrink-0 items-center gap-1.5 rounded-lg border border-gray-600 bg-gray-700 px-3 py-2 text-xs font-medium text-gray-200 transition hover:bg-gray-600 hover:text-white disabled:opacity-50"
+                            title="Upload foto Depois"
+                          >
+                            <Upload className="h-3.5 w-3.5" />
+                            {uploadingOptionId === `pair_after_${pair.id}` ? 'Enviando...' : 'Upload'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Legenda */}
+                      <div>
+                        <label className="mb-1 block text-[11px] font-medium text-gray-400">Legenda (opcional)</label>
+                        <input
+                          value={pair.caption ?? ''}
+                          onChange={(event) =>
+                            builder.handleUpdatePair(selectedStep.id, pair.id, { caption: event.target.value })
+                          }
+                          placeholder="Ex: Resultado após 15 dias"
+                          className={inputClass}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {(selectedStep.type === 'before_after' ||
                 selectedStep.type === 'unit_choice' ||
