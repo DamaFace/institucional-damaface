@@ -2,8 +2,8 @@
 
 import type { FunnelConfig } from '@/types/funnels'
 
-export const funilAvaliacaoEstetica: FunnelConfig = {
-  id: 'funnel_avaliacao_estetica',
+export const funilExemplo: FunnelConfig = {
+  id: 'funnel_exemplo',
   name: 'Avaliação Personalizada de Realce e Rejuvenescimento',
   version: 1,
   entry_step_id: 'step_01',
