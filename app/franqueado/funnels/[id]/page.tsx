@@ -52,8 +52,23 @@ const MVP_BLOCK_TYPES: { type: FunnelBlockType; label: string }[] = [
 const inputClass =
   'w-full px-3 py-2 bg-gray-900 border border-gray-600 rounded-lg text-white text-sm focus:outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-500/20 transition-all'
 
-function isLocalId(id: string | number): boolean {
-  return String(id).includes('_local_')
+function getNumericId(id: unknown): number | undefined {
+  if (typeof id === 'number' && Number.isInteger(id) && id > 0) return id
+  if (typeof id === 'string') {
+    const trimmed = id.trim()
+    if (/^\d+$/.test(trimmed)) {
+      const parsed = parseInt(trimmed, 10)
+      if (parsed > 0) return parsed
+    }
+  }
+  return undefined
+}
+
+function isLocalId(id: string | number | null | undefined): boolean {
+  if (id === null || id === undefined) return true
+  if (typeof id === 'number') return id <= 0
+  const str = String(id).trim()
+  return str.includes('_local_') || !/^\d+$/.test(str)
 }
 
 function SortableStepRow({
@@ -164,7 +179,7 @@ export default function FunnelEditorPage() {
   }
 
   const handleRemoveStep = (step: FunnelStep) => {
-    if (!isLocalId(step.id)) setDeletedStepIds((prev) => [...prev, step.id])
+    if (!isLocalId(step.id)) setDeletedStepIds((prev) => [...prev, String(step.id)])
     builder.handleRemoveStep(step.id)
   }
 
@@ -212,26 +227,34 @@ export default function FunnelEditorPage() {
       for (const step of builder.steps) {
         const { id, ...payload } = step
 
-        const cleanOptions = (step.options ?? []).map((opt, optIndex) => ({
-          ...(isLocalId(opt.id) ? {} : { id: Number(opt.id) }),
-          label: opt.label || '',
-          value: opt.value || `opcao_${optIndex + 1}`,
-          position: optIndex,
-          image_url: opt.image_url || undefined,
-          asset_id: opt.asset_id ? Number(opt.asset_id) : undefined,
-          next_step_id: opt.next_step_id && !isLocalId(opt.next_step_id) ? Number(opt.next_step_id) : null,
-        }))
+        const cleanOptions = (step.options ?? []).map((opt, optIndex) => {
+          const numId = getNumericId(opt.id)
+          const numNextStep = getNumericId(opt.next_step_id)
+          const numAsset = getNumericId(opt.asset_id)
+
+          return {
+            ...(numId !== undefined ? { id: numId } : {}),
+            label: opt.label || '',
+            value: opt.value || `opcao_${optIndex + 1}`,
+            position: optIndex,
+            image_url: opt.image_url || undefined,
+            asset_id: numAsset ?? undefined,
+            next_step_id: numNextStep ?? null,
+          }
+        })
+
+        const numStepNextStep = getNumericId(payload.next_step_id)
 
         const stepPayload = {
           ...payload,
           options: cleanOptions,
-          next_step_id: payload.next_step_id && !isLocalId(payload.next_step_id) ? Number(payload.next_step_id) : null,
+          next_step_id: numStepNextStep ?? null,
         }
 
         if (isLocalId(id)) {
           await funnelAdminApi.createStep(funnelId, stepPayload as any)
         } else {
-          await funnelAdminApi.updateStep(funnelId, id, stepPayload as any)
+          await funnelAdminApi.updateStep(funnelId, String(id), stepPayload as any)
         }
       }
 
@@ -246,7 +269,6 @@ export default function FunnelEditorPage() {
       setIsSaving(false)
     }
   }
-
 
   const handlePublish = async () => {
     if (!funnel) return
