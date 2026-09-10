@@ -73,7 +73,7 @@ export const unidadesData = [
     "nome": "Damaface - Harmonização Limeira",
     "endereço": { "rua":"R. Santa Josefa","numero": "316","bairro": "Vila São João","cidade": "Limeira - SP","CEP": "13480-732" },
     "atendimento": { "segunda_sexta": [9, 18], "sabado": [], "domingo": [] },
-    "contatos": { "whatsapp": "19997210961","instagram": "damafacelimeira","facebook": "Damaface-Harmonização-Limeira-61576890102075","followersInstagram": 295,"followersFacebook": 5 }
+    "contatos": { "whatsapp": "19981361159","instagram": "damafacelimeira","facebook": "Damaface-Harmonização-Limeira-61576890102075","followersInstagram": 295,"followersFacebook": 5 }
   },
   {
     "unidade": "Moema - SP",
